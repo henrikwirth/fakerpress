@@ -1,4 +1,5 @@
 <?php
+
 namespace FakerPress\Provider;
 
 use FakerPress\Utils;
@@ -28,17 +29,32 @@ class HTML extends Base {
 
 	static public $sets = [
 		'self_close' => [ 'img', 'hr', '!--more--' ],
-		'header' => [ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' ],
-		'list' => [ 'ul', 'ol' ],
-		'block' => [ 'div', 'p', 'blockquote' ],
-		'item' => [ 'li' ],
-		'inline' => [
-			'b', 'big', 'i', 'small', 'tt',
-			'abbr', 'cite', 'code', 'em', 'strong',
-			'a', 'bdo', 'br', 'img', 'q', 'span', 'sub', 'sup',
+		'header'     => [ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' ],
+		'list'       => [ 'ul', 'ol' ],
+		'block'      => [ 'div', 'p', 'blockquote' ],
+		'item'       => [ 'li' ],
+		'inline'     => [
+			'b',
+			'big',
+			'i',
+			'small',
+			'tt',
+			'abbr',
+			'cite',
+			'code',
+			'em',
+			'strong',
+			'a',
+			'bdo',
+			'br',
+			'img',
+			'q',
+			'span',
+			'sub',
+			'sup',
 			'hr',
 		],
-		'wp' => [ '!--more--' ]
+		'wp'         => [ '!--more--' ]
 	];
 
 	private function filter_html_comments( $element = '' ) {
@@ -46,10 +62,11 @@ class HTML extends Base {
 	}
 
 	private function has_element( $needle = '', $haystack = [] ) {
-		$needle = trim( $needle );
-		$filtered = array_filter( $haystack, function( $element ) use ( $needle ){
+		$needle   = trim( $needle );
+		$filtered = array_filter( $haystack, function ( $element ) use ( $needle ) {
 			return preg_match( "/<?(!--)? ?({$needle})+ ?(--)?>?/i", $element ) !== 0;
 		} );
+
 		return count( $filtered ) > 0;
 	}
 
@@ -57,14 +74,14 @@ class HTML extends Base {
 		$html = [];
 
 		$defaults = [
-			'qty' => [ 5, 25 ],
-			'elements' => array_merge( self::$sets['header'], self::$sets['list'], self::$sets['block'] ),
-			'attr' => [],
-			'exclude' => [ 'div' ],
+			'qty'                 => [ 5, 25 ],
+			'elements'            => array_merge( self::$sets['header'], self::$sets['list'], self::$sets['block'] ),
+			'attr'                => [],
+			'exclude'             => [ 'div' ],
 			'allow_html_comments' => false,
 		];
 
-		$args = (object) wp_parse_args( $args, $defaults );
+		$args                   = (object) wp_parse_args( $args, $defaults );
 		$args->did_more_element = false;
 
 		// Randomize the quantity based on range
@@ -73,7 +90,7 @@ class HTML extends Base {
 		$max_to_more = ( $args->qty / 2 ) + $this->generator->numberBetween( 0, max( floor( $args->qty / 2 ), 1 ) );
 		$min_to_more = ( $args->qty / 2 ) - $this->generator->numberBetween( 0, max( floor( $args->qty / 2 ), 1 ) );
 
-		for ( $i = 0; $i < $args->qty; $i++ ) {
+		for ( $i = 0; $i < $args->qty; $i ++ ) {
 			$exclude = $args->exclude;
 			if ( isset( $element ) ) {
 				// Here we check if we need to exclude some elements from the next
@@ -101,9 +118,9 @@ class HTML extends Base {
 				&& $args->qty > 2
 				&& $this->has_element( '!--more--', $args->elements )
 				&& $i < $max_to_more
-				&&	$i > $min_to_more
+				&& $i > $min_to_more
 			) {
-				$html[] = $this->element( '!--more--' );
+				$html[]                 = $this->element( '!--more--' );
 				$args->did_more_element = true;
 			}
 		}
@@ -113,9 +130,13 @@ class HTML extends Base {
 
 	private function html_element_img( $element, $sources = [ 'placeholdit', 'lorempicsum' ] ) {
 		if ( ! isset( $element->attr['class'] ) ) {
-			$element->attr['class'][] = $this->generator->optional( 40, null )->randomElement( [ 'aligncenter', 'alignleft', 'alignright' ] );
-			$element->attr['class'] = array_filter( $element->attr['class'] );
-			$element->attr['class'] = implode( ' ', $element->attr['class'] );
+			$element->attr['class'][] = $this->generator->optional( 40, null )->randomElement( [
+				'aligncenter',
+				'alignleft',
+				'alignright'
+			] );
+			$element->attr['class']   = array_filter( $element->attr['class'] );
+			$element->attr['class']   = implode( ' ', $element->attr['class'] );
 		}
 
 		if ( ! isset( $element->attr['alt'] ) ) {
@@ -132,11 +153,11 @@ class HTML extends Base {
 	}
 
 	public function get_img_src( $sources = [ 'placeholdit', 'lorempicsum' ] ) {
-		$images = \FakerPress\Module\Post::fetch( [ 'post_type' => 'attachment' ] );
-		$image = false;
+		$images       = \FakerPress\Module\Post::fetch( [ 'post_type' => 'attachment' ] );
+		$image        = false;
 		$count_images = count( $images );
-		$optional = ( $count_images * 2 );
-		$optional = $optional > 100 ? 100 : $optional;
+		$optional     = ( $count_images * 2 );
+		$optional     = $optional > 100 ? 100 : $optional;
 
 		if ( $count_images > 0 ) {
 			$image = $this->generator->optional( $optional, $image )->randomElement( $images );
@@ -144,8 +165,8 @@ class HTML extends Base {
 
 		if ( false === $image ) {
 			$image = \FakerPress\Module\Attachment::instance()
-				->set( 'attachment_url', $this->generator->randomElement( $sources ) )
-				->generate()->save();
+			                                      ->set( 'attachment_url', $this->generator->randomElement( $sources ) )
+			                                      ->generate()->save();
 		}
 
 		return wp_get_attachment_url( $image );
@@ -156,14 +177,14 @@ class HTML extends Base {
 		$total_words = count( $words );
 		$sentences   = [];
 
-		for ( $i = 0; $i < $total_words; $i++ ) {
+		for ( $i = 0; $i < $total_words; $i ++ ) {
 			$group    = Base::numberBetween( 1, Base::numberBetween( 3, 9 ) );
 			$sentence = [];
 
-			for ( $k = 0 ; $k < $group; $k++ ) {
+			for ( $k = 0; $k < $group; $k ++ ) {
 				$index = $i + $k;
 
-				if ( ! isset( $words[ $index ] ) ){
+				if ( ! isset( $words[ $index ] ) ) {
 					break;
 				}
 
@@ -177,21 +198,55 @@ class HTML extends Base {
 
 		$qty = $max - Base::numberBetween( 0, $max );
 
-		if ( 0 === $qty ){
+		if ( 0 === $qty ) {
 			return $text;
 		}
 
 		$indexes = floor( count( $sentences ) / $qty );
 
-		for ( $i = 0; $i < $qty; $i++ ) {
+		for ( $i = 0; $i < $qty; $i ++ ) {
 			$index = ( $indexes * $i ) + Base::numberBetween( 0, $indexes );
 
-			if ( isset( $sentences[ $index ] ) ){
+			if ( isset( $sentences[ $index ] ) ) {
 				$sentences[ $index ] = $this->element( $element, [], $sentences[ $index ] );
 			}
 		}
 
 		return implode( ' ', $sentences );
+	}
+
+	public function get_elements_gutenberg_fields( $name ) {
+		$tag     = null;
+		$options = null;
+		$extra_tag = null;
+		var_dump($name);
+
+
+		if ( 'p' === $name ) {
+			$tag = 'paragraph';
+		} elseif ( 'ul' === $name ) {
+			$tag = 'list';
+		} elseif ( 'ol' === $name ) {
+			$tag     = 'list';
+			$options = '{"ordered" : true}';
+		} elseif ( in_array( $name, self::$sets['header'] ) ) {
+			$tag = 'heading';
+			$options = '{"level": '. $name[1] .'}';
+		} elseif ('!--more--' === $name) {
+			$tag = 'more';
+		} elseif ('blockquote' === $name) {
+			$tag = 'quote';
+			$extra_tag = 'p';
+		} elseif ('hr' === $name) {
+			$tag = 'separator';
+		}
+
+
+		return (object) [
+			'tag'     => $tag,
+			'options' => $options,
+			'extra_tag' => $extra_tag,
+		];
 	}
 
 	public function element( $name = 'div', $attr = [], $text = null, $args = null ) {
@@ -203,6 +258,10 @@ class HTML extends Base {
 		if ( empty( $element->name ) ) {
 			return false;
 		}
+
+
+		$gutenberg_fields = self::get_elements_gutenberg_fields( $name );
+
 
 		$element->one_liner = in_array( $element->name, self::$sets['self_close'] );
 
@@ -225,12 +284,30 @@ class HTML extends Base {
 			$element = $this->html_element_img( $element, $sources );
 		}
 
+		if ('hr' === $element->name) {
+			$element->attr['class'] = 'wp-block-separator';
+		} else if('blockquote' === $element->name) {
+			$element->attr['class'] = 'wp-block-quote';
+		}
+
 		$attributes = [];
 		foreach ( $element->attr as $key => $value ) {
 			$attributes[] = sprintf( '%s="%s"', $key, esc_attr( $value ) );
 		}
 
+//		$html[] = sprintf( '<%s%s>', $element->name, ( ! empty( $attributes ) ? ' ' : '' ) . implode( ' ', $attributes ) );
+		//( ! empty( $attributes ) ? ' ' : '' ) . implode( ' ', $attributes )
+		//TODO: apply attributes
+
+		if ( ! empty( $gutenberg_fields->tag ) ) {
+			$html[] = sprintf( '<!-- wp:%s -->', empty( $gutenberg_fields->options ) ? $gutenberg_fields->tag : ( $gutenberg_fields->tag . " " . $gutenberg_fields->options ) );
+		}
+
 		$html[] = sprintf( '<%s%s>', $element->name, ( ! empty( $attributes ) ? ' ' : '' ) . implode( ' ', $attributes ) );
+
+		if ( ! empty( $gutenberg_fields->extra_tag ) ) {
+			$html[] = sprintf( '<%s>', $gutenberg_fields->extra_tag);
+		}
 
 		if ( ! $element->one_liner ) {
 			if ( ! is_null( $text ) ) {
@@ -242,7 +319,7 @@ class HTML extends Base {
 				$text   = Lorem::text( Base::numberBetween( 10, 60 ) );
 				$html[] = substr( $text, 0, strlen( $text ) - 1 );
 			} elseif ( in_array( $element->name, self::$sets['list'] ) ) {
-				for ( $i = 0; $i < Base::numberBetween( 1, 15 ); $i++ ) {
+				for ( $i = 0; $i < Base::numberBetween( 1, 15 ); $i ++ ) {
 					$html[] = $this->element( 'li' );
 				}
 			} elseif ( in_array( $element->name, self::$sets['header'] ) ) {
@@ -252,8 +329,18 @@ class HTML extends Base {
 				$html[] = $this->random_apply_element( 'a', Base::numberBetween( 0, 10 ), Lorem::paragraph( Base::numberBetween( 2, 40 ) ) );
 			}
 
+			if ( ! empty( $gutenberg_fields->extra_tag ) ) {
+				$html[] = sprintf( '</%s>', $gutenberg_fields->extra_tag);
+			}
+
 			$html[] = sprintf( '</%s>', $element->name );
 		}
+
+		if ( ! empty( $gutenberg_fields->tag ) ) {
+			$html[] = sprintf( '<!-- /wp:%s -->', $gutenberg_fields->tag );
+		}
+
+//		var_dump( implode( '', $html ) );
 
 		return implode( '', $html );
 	}
