@@ -128,28 +128,37 @@ class HTML extends Base {
 		return (array) $html;
 	}
 
-	private function html_element_img( $element, $sources = [ 'placeholdit', 'lorempicsum' ] ) {
-		if ( ! isset( $element->attr['class'] ) ) {
-			$element->attr['class'][] = $this->generator->optional( 40, null )->randomElement( [
+	private function html_element_img( $element, $wrapper, $sources = [ 'placeholdit', 'lorempicsum' ] ) {
+		if ( ! isset( $wrapper->attr['class'] ) ) {
+			$wrapper->attr['class'][] = $this->generator->optional( 40, null )->randomElement( [
 				'aligncenter',
 				'alignleft',
 				'alignright'
 			] );
-			$element->attr['class']   = array_filter( $element->attr['class'] );
-			$element->attr['class']   = implode( ' ', $element->attr['class'] );
+			$wrapper->attr['class'][] = "wp-block-image";
+			$wrapper->attr['class'][] = "size-large";
+
+			$wrapper->attr['class'] = array_filter( $wrapper->attr['class'] );
+			$wrapper->attr['class'] = implode( ' ', $wrapper->attr['class'] );
 		}
 
 		if ( ! isset( $element->attr['alt'] ) ) {
 			$element->attr['alt'] = rtrim( $this->generator->optional( 70, null )->sentence( Base::randomDigitNotNull() ), '.' );
 		}
 
+		$image_id = $this->get_img_src( $sources );
+
 		if ( ! isset( $element->attr['src'] ) ) {
-			$element->attr['src'] = $this->get_img_src( $sources );
+			$element->attr['src'] = wp_get_attachment_url( $image_id );
 		}
 
 		$element->attr = array_filter( $element->attr );
 
-		return $element;
+		return (object) [
+			'element'  => $element,
+			'wrapper'  => $wrapper,
+			'image_id' => $image_id,
+		];
 	}
 
 	public function get_img_src( $sources = [ 'placeholdit', 'lorempicsum' ] ) {
@@ -169,7 +178,7 @@ class HTML extends Base {
 			                                      ->generate()->save();
 		}
 
-		return wp_get_attachment_url( $image );
+		return $image;
 	}
 
 	public function random_apply_element( $element = 'a', $max = 5, $text = null ) {
@@ -216,10 +225,9 @@ class HTML extends Base {
 	}
 
 	public function get_elements_gutenberg_fields( $name ) {
-		$tag     = null;
-		$options = null;
+		$tag       = null;
+		$options   = null;
 		$extra_tag = null;
-		var_dump($name);
 
 
 		if ( 'p' === $name ) {
@@ -228,23 +236,32 @@ class HTML extends Base {
 			$tag = 'list';
 		} elseif ( 'ol' === $name ) {
 			$tag     = 'list';
-			$options = '{"ordered" : true}';
+			$options = (object) [
+				"ordered" => "true"
+			];
 		} elseif ( in_array( $name, self::$sets['header'] ) ) {
-			$tag = 'heading';
-			$options = '{"level": '. $name[1] .'}';
-		} elseif ('!--more--' === $name) {
+			$tag     = 'heading';
+			$options = (object) [
+				'level' => $name[1],
+			];
+		} elseif ( '!--more--' === $name ) {
 			$tag = 'more';
-		} elseif ('blockquote' === $name) {
-			$tag = 'quote';
+		} elseif ( 'blockquote' === $name ) {
+			$tag       = 'quote';
 			$extra_tag = 'p';
-		} elseif ('hr' === $name) {
+		} elseif ( 'hr' === $name ) {
 			$tag = 'separator';
+		} elseif ( 'img' === $name ) {
+			$tag     = 'image';
+			$options = (object) [
+				'sizeSlug' => 'large',
+			];
 		}
 
 
 		return (object) [
-			'tag'     => $tag,
-			'options' => $options,
+			'tag'       => $tag,
+			'options'   => $options,
 			'extra_tag' => $extra_tag,
 		];
 	}
@@ -255,12 +272,18 @@ class HTML extends Base {
 			'attr' => $attr,
 		];
 
+		$wrapper = (object) [
+			'attr' => [],
+		];
+
 		if ( empty( $element->name ) ) {
 			return false;
 		}
 
 
 		$gutenberg_fields = self::get_elements_gutenberg_fields( $name );
+
+		$options = [];
 
 
 		$element->one_liner = in_array( $element->name, self::$sets['self_close'] );
@@ -276,18 +299,34 @@ class HTML extends Base {
 			}
 		}
 
+
 		if ( 'img' === $element->name ) {
 			$sources = [ 'placeholdit', 'lorempicsum' ];
 			if ( is_object( $args ) && $args->sources ) {
 				$sources = $args->sources;
 			}
-			$element = $this->html_element_img( $element, $sources );
+
+			$wrapper->name = 'figure';
+
+			$image_obj = $this->html_element_img( $element, $wrapper, $sources );
+
+			$element  = $image_obj->element;
+			$wrapper  = $image_obj->wrapper;
+
+			$gutenberg_fields->options->id = $image_obj->image_id;
 		}
 
-		if ('hr' === $element->name) {
+
+		if ( 'hr' === $element->name ) {
 			$element->attr['class'] = 'wp-block-separator';
-		} else if('blockquote' === $element->name) {
+		} else if ( 'blockquote' === $element->name ) {
 			$element->attr['class'] = 'wp-block-quote';
+		}
+
+		if ( ! empty( $gutenberg_fields->options ) ) {
+			foreach ( $gutenberg_fields->options as $key => $value ) {
+				$options[] = sprintf( '"%s": %s', $key, esc_attr( $value ) );
+			}
 		}
 
 		$attributes = [];
@@ -295,18 +334,33 @@ class HTML extends Base {
 			$attributes[] = sprintf( '%s="%s"', $key, esc_attr( $value ) );
 		}
 
+		$wrapper_attributes = [];
+		foreach ( $wrapper->attr as $key => $value ) {
+			$wrapper_attributes[] = sprintf( '%s="%s"', $key, esc_attr( $value ) );
+		}
+
+
 //		$html[] = sprintf( '<%s%s>', $element->name, ( ! empty( $attributes ) ? ' ' : '' ) . implode( ' ', $attributes ) );
 		//( ! empty( $attributes ) ? ' ' : '' ) . implode( ' ', $attributes )
 		//TODO: apply attributes
 
+		// Gutenberg Block Wrapper like: <!-- wp:list -->
 		if ( ! empty( $gutenberg_fields->tag ) ) {
-			$html[] = sprintf( '<!-- wp:%s -->', empty( $gutenberg_fields->options ) ? $gutenberg_fields->tag : ( $gutenberg_fields->tag . " " . $gutenberg_fields->options ) );
+
+			$html[] = sprintf( '<!-- wp:%s -->', empty( $gutenberg_fields->options ) ? $gutenberg_fields->tag : ( $gutenberg_fields->tag . " {" . implode( ", ", $options ) . " }" ) );
 		}
 
+		// Wrapper like: <figure><img>
+		if ( ! empty( $wrapper->name ) ) {
+			$html[] = sprintf( '<%s%s>', $wrapper->name, ( ! empty( $wrapper_attributes ) ? ' ' : '' ) . implode( ' ', $wrapper_attributes ) );
+		}
+
+		// Normal HTML-Tag
 		$html[] = sprintf( '<%s%s>', $element->name, ( ! empty( $attributes ) ? ' ' : '' ) . implode( ' ', $attributes ) );
 
+		// If there is an extra inner tag needed like the p in: <blockquote><p></p></blockquote>
 		if ( ! empty( $gutenberg_fields->extra_tag ) ) {
-			$html[] = sprintf( '<%s>', $gutenberg_fields->extra_tag);
+			$html[] = sprintf( '<%s>', $gutenberg_fields->extra_tag );
 		}
 
 		if ( ! $element->one_liner ) {
@@ -330,17 +384,19 @@ class HTML extends Base {
 			}
 
 			if ( ! empty( $gutenberg_fields->extra_tag ) ) {
-				$html[] = sprintf( '</%s>', $gutenberg_fields->extra_tag);
+				$html[] = sprintf( '</%s>', $gutenberg_fields->extra_tag );
 			}
 
 			$html[] = sprintf( '</%s>', $element->name );
 		}
 
+		if ( ! empty( $wrapper->name ) ) {
+			$html[] = sprintf( '</%s>', $wrapper->name );
+		}
+
 		if ( ! empty( $gutenberg_fields->tag ) ) {
 			$html[] = sprintf( '<!-- /wp:%s -->', $gutenberg_fields->tag );
 		}
-
-//		var_dump( implode( '', $html ) );
 
 		return implode( '', $html );
 	}
